@@ -1,4 +1,4 @@
-﻿namespace CredentialManagement
+﻿namespace HPE.Extensions.Configuration.CredentialManager
 {
     public enum PersistanceType : uint
     {

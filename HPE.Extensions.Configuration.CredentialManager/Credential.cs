@@ -5,12 +5,10 @@ using System.Security;
 using System.Security.Permissions;
 using System.Text;
 
-namespace CredentialManagement
+namespace HPE.Extensions.Configuration.CredentialManager
 {
     public class Credential: IDisposable
     {
-
-        static object _lockObject = new object();
         bool _disposed;
 
         CredentialType _type;
@@ -54,7 +52,6 @@ namespace CredentialManagement
             _lastWriteTime = DateTime.MinValue;
         }
 
-
         public void Dispose()
         {
             Dispose(true);
@@ -87,7 +84,6 @@ namespace CredentialManagement
                 throw new ObjectDisposedException("Credential object is already disposed.");
             }
         }
-
 
         public string Username {
             get
@@ -208,20 +204,30 @@ namespace CredentialManagement
         {
             CheckNotDisposed();
 
-            byte[] passwordBytes = Encoding.Unicode.GetBytes(Password);
-            if (Password.Length > (512))
+            byte[] passwordBytes;
+            if (Password == null)
             {
-                throw new ArgumentOutOfRangeException("The password has exceeded 512 bytes.");
+                passwordBytes = null;
+            }
+            else
+            {
+                passwordBytes = Encoding.Unicode.GetBytes(Password);
+                if (Password.Length > (512))
+                {
+                    throw new ArgumentOutOfRangeException("The password has exceeded 512 bytes.");
+                }
             }
 
-            NativeMethods.CREDENTIAL credential = new NativeMethods.CREDENTIAL();
-            credential.TargetName = Target;
-            credential.UserName = Username;
-            credential.CredentialBlob = Marshal.StringToCoTaskMemUni(Password);
-            credential.CredentialBlobSize = passwordBytes.Length;
-            credential.Comment = Description;
-            credential.Type = (int)Type;
-            credential.Persist = (int) PersistanceType;
+            NativeMethods.CREDENTIAL credential = new NativeMethods.CREDENTIAL()
+            {
+                TargetName = Target,
+                UserName = Username,
+                CredentialBlob = Marshal.StringToCoTaskMemUni(Password),
+                CredentialBlobSize = passwordBytes != null ? passwordBytes.Length : 0,
+                Comment = Description,
+                Type = (int)Type,
+                Persist = (int)PersistanceType
+            };
 
             bool result = NativeMethods.CredWrite(ref credential, 0);
             if (!result)
@@ -250,8 +256,12 @@ namespace CredentialManagement
         {
             CheckNotDisposed();
 
-            IntPtr credPointer;
+            //if (string.IsNullOrEmpty(Target))
+            //{
+            //    throw new InvalidOperationException("Target must be specified to load a credential.");
+            //}
 
+            IntPtr credPointer;
             bool result = NativeMethods.CredRead(Target, Type, 0, out credPointer);
             if (!result)
             {
@@ -261,6 +271,7 @@ namespace CredentialManagement
             {
                 LoadInternal(credentialHandle.GetCredential());
             }
+
             return true;
         }
 
@@ -273,7 +284,7 @@ namespace CredentialManagement
                 throw new InvalidOperationException("Target must be specified to check existance of a credential.");
             }
 
-            using (Credential existing = new Credential { Target = Target, Type = Type })
+            using (Credential existing = new Credential() { Target = Target, Type = Type })
             {
                 return existing.Load();
             }

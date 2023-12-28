@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Exe</OutputType>
+	<UserSecretsId>Test</UserSecretsId>
+	<CredentialManagerPrefixId>Git:</CredentialManagerPrefixId>
+	<Copyright>2023</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CredentialVaultManager\HPE.Extensions.Configuration.CredentialManager.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+  </ItemGroup>
+</Project>

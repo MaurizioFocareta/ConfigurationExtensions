@@ -2,12 +2,11 @@
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace CredentialManagement
+namespace HPE.Extensions.Configuration.CredentialManager
 {
     [SuppressUnmanagedCodeSecurity]
     internal static class SecureStringHelper
     {
-        // Methods
         internal static unsafe SecureString CreateSecureString(string plainString)
         {
             SecureString str;
@@ -47,6 +46,4 @@ namespace CredentialManagement
             return str;
         }
     }
-
-
 }

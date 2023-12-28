@@ -3,10 +3,11 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace CredentialManagement
+namespace HPE.Extensions.Configuration.CredentialManager
 {
     public class NativeMethods
     {
+        public const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512;
 
         public const int CREDUI_MAX_USERNAME_LENGTH = 513;
         public const int CREDUI_MAX_PASSWORD_LENGTH = 256;
