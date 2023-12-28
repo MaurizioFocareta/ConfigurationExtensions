@@ -1,1 +1,1 @@
-# HPE.Extensions.Configuration.CredentialManager
+# CredentialManager
