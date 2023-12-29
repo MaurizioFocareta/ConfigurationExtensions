@@ -41,6 +41,11 @@ namespace TestConsoleApp
                         .AddCredentialManager(args[1])
                         .Build();
                 }
+                else if (args[0] == "-d")
+                {
+                    RemoveCredential(args[1]);
+                    return;
+                }
                 else
                 {
                     Console.WriteLine($"Unknown parameter {args[0]}");
@@ -58,6 +63,16 @@ namespace TestConsoleApp
             {
                 Console.WriteLine(config.Key);
             }
+        }
+
+        private static void RemoveCredential(string targetName)
+        {
+            var newCred = new Credential()
+            {
+                Target = targetName
+            };
+
+            newCred.Delete();
         }
 
         private static void AddCredential()
