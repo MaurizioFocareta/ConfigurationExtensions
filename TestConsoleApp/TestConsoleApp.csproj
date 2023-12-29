@@ -1,12 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <OutputType>Exe</OutputType>
-	<UserSecretsId>Test</UserSecretsId>
-	<CredentialManagerPrefixId>Git:</CredentialManagerPrefixId>
-	<Copyright>2023</Copyright>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\HPE.Extensions.Configuration.CredentialManager\HPE.Extensions.Configuration.CredentialManager.csproj" />
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<UserSecretsId>Test</UserSecretsId>
+		<Copyright>2023</Copyright>
+	</PropertyGroup>
+	<ItemGroup>
+		<AssemblyAttribute Include="HPE.Extensions.Configuration.CredentialManager.CredentialManagerPrefixIdAttribute">
+			<_Parameter1>Test_</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\HPE.Extensions.Configuration.CredentialManager\HPE.Extensions.Configuration.CredentialManager.csproj" />
+	</ItemGroup>
 </Project>
