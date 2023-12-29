@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "TestConsoleApp": {
-      "commandName": "Project",
-      "commandLineArgs": "-w"
-    }
-  }
-}
