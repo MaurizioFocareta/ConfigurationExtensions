@@ -41,14 +41,19 @@ namespace HPE.Extensions.Configuration.CredentialManager
             : this(username, password, target, CredentialType.Generic)
         {
         }
-
         public Credential(string username, string password, string target, CredentialType type)
+            : this(username, password, target, type, PersistanceType.Session)
+        {
+        }
+
+        public Credential(string username, string password, string target, CredentialType type, PersistanceType persistanceType)
         {
             Username = username;
             Password = password;
             Target = target;
             Type = type;
-            PersistanceType = PersistanceType.Session;
+            PersistanceType = persistanceType;
+
             _lastWriteTime = DateTime.MinValue;
         }
 
@@ -256,13 +261,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
         {
             CheckNotDisposed();
 
-            //if (string.IsNullOrEmpty(Target))
-            //{
-            //    throw new InvalidOperationException("Target must be specified to load a credential.");
-            //}
-
-            IntPtr credPointer;
-            bool result = NativeMethods.CredRead(Target, Type, 0, out credPointer);
+            bool result = NativeMethods.CredRead(Target, Type, 0, out IntPtr credPointer);
             if (!result)
             {
                 return false;

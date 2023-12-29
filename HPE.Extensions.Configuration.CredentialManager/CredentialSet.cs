@@ -22,15 +22,17 @@ namespace HPE.Extensions.Configuration.CredentialManager
         {
             if (string.IsNullOrEmpty(targetPrefix))
             {
-                throw new ArgumentNullException(nameof(targetPrefix));
+                TargetPrefix = null;
             }
-
-            if (!targetPrefix.EndsWith("*"))
+            else
             {
-                targetPrefix = $"{targetPrefix}*";
-            }
+                if (!targetPrefix.EndsWith("*"))
+                {
+                    targetPrefix = $"{targetPrefix}*";
+                }
 
-            TargetPrefix = targetPrefix;
+                TargetPrefix = targetPrefix;
+            }
         }
 
         public string TargetPrefix { get; set; }
