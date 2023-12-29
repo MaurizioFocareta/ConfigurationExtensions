@@ -15,23 +15,16 @@ namespace HPE.Extensions.Configuration.CredentialManager
     {
         public static IConfigurationBuilder AddCredentialManager<T>(this IConfigurationBuilder configuration)
             where T : class
-            => configuration.AddCredentialManager(typeof(T).Assembly, optional: true, reloadOnChange: false);
+            => configuration.AddCredentialManager(typeof(T).Assembly, optional: true);
 
         public static IConfigurationBuilder AddCredentialManager<T>(this IConfigurationBuilder configuration, bool optional)
             where T : class
-            => configuration.AddCredentialManager(typeof(T).Assembly, optional, reloadOnChange: false);
-
-        public static IConfigurationBuilder AddCredentialManager<T>(this IConfigurationBuilder configuration, bool optional, bool reloadOnChange)
-            where T : class
-            => configuration.AddCredentialManager(typeof(T).Assembly, optional, reloadOnChange);
+            => configuration.AddCredentialManager(typeof(T).Assembly, optional);
 
         public static IConfigurationBuilder AddCredentialManager(this IConfigurationBuilder configuration, Assembly assembly)
-            => configuration.AddCredentialManager(assembly, optional: true, reloadOnChange: false);
+            => configuration.AddCredentialManager(assembly, optional: true);
 
         public static IConfigurationBuilder AddCredentialManager(this IConfigurationBuilder configuration, Assembly assembly, bool optional)
-            => configuration.AddCredentialManager(assembly, optional, reloadOnChange: false);
-
-        public static IConfigurationBuilder AddCredentialManager(this IConfigurationBuilder configuration, Assembly assembly, bool optional, bool reloadOnChange)
         {
             if (configuration == null)
             {
@@ -45,7 +38,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
             CredentialManagerPrefixIdAttribute attribute = assembly.GetCustomAttribute<CredentialManagerPrefixIdAttribute>();
             if (attribute != null)
             {
-                return AddCredentialManagerInternal(configuration, attribute.PrefixId, optional, reloadOnChange);
+                return AddCredentialManagerInternal(configuration, attribute.PrefixId);
             }
 
             if (!optional)
@@ -57,12 +50,9 @@ namespace HPE.Extensions.Configuration.CredentialManager
         }
 
         public static IConfigurationBuilder AddCredentialManager(this IConfigurationBuilder configuration, string prefixId)
-            => configuration.AddCredentialManager(prefixId, reloadOnChange: false);
+            => AddCredentialManagerInternal(configuration, prefixId);
 
-        public static IConfigurationBuilder AddCredentialManager(this IConfigurationBuilder configuration, string prefixId, bool reloadOnChange)
-            => AddCredentialManagerInternal(configuration, prefixId, true, reloadOnChange);
-
-        private static IConfigurationBuilder AddCredentialManagerInternal(IConfigurationBuilder configuration, string prefixId, bool optional, bool reloadOnChange)
+        private static IConfigurationBuilder AddCredentialManagerInternal(IConfigurationBuilder configuration, string prefixId)
         {
             if (configuration == null)
             {
@@ -73,7 +63,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
                 throw new ArgumentNullException(nameof(prefixId));
             }
 
-            return configuration.Add(new CredentialManagerConfigurationProvider());
+            return configuration.Add(new CredentialManagerConfigurationProvider(prefixId));
         }
     }
 }

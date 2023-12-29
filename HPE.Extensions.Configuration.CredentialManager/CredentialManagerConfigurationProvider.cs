@@ -28,10 +28,13 @@ namespace HPE.Extensions.Configuration.CredentialManager
         public override void Load()
         {
             CredentialSet credentials = new CredentialSet(PrefixId);
+
+            credentials.Load();
+
             foreach (var credential in credentials)
             {
-                Data.Add($"CustomCredentials:{credential.Target.Remove(0, PrefixId.Length - 1)}:Username", credential.Username);
-                Data.Add($"CustomCredentials:{credential.Target.Remove(0, PrefixId.Length - 1)}:Password", credential.Password);
+                Data.Add($"CustomCredentials:{credential.Target.Remove(0, PrefixId.Length)}:Username", credential.Username);
+                Data.Add($"CustomCredentials:{credential.Target.Remove(0, PrefixId.Length)}:Password", credential.Password);
             }
         }
 
