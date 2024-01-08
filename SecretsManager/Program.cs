@@ -1,64 +1,92 @@
 ﻿using HPE.Extensions.Configuration.CredentialManager;
 using Microsoft.Extensions.Configuration;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace TestConsoleApp
+namespace SecretsManager
 {
     internal class Program
     {
+        private static IConfigurationRoot configuration;
+
+        private static void HelpString()
+        {
+            Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2023)");
+            Console.WriteLine();
+            Console.WriteLine("SecretsManager [-w] [-a] [-p] [-s <Filter>] [-d <Target>]");
+            Console.WriteLine();
+            Console.WriteLine("-w\t\tAdd new generic credential for the current user");
+            Console.WriteLine("-a\t\tGet all generic credential keys for the current user");
+            Console.WriteLine("-p\t\tGet all generic credential keys for the current user with Target based on assembly attribute");
+            Console.WriteLine("\t\tThe assembly is searched for the CredentialManagerPrefixId attribute");
+            Console.WriteLine("-s <Filter>\tGet all generic credential keys for the current user with Target starting with <Filter>");
+            Console.WriteLine("-d <Target>\tRemoves the generic credentials for the current user with the given <Target>");
+            Console.WriteLine();
+        }
+
         static void Main(string[] args)
         {
-            IConfigurationRoot configuration;
-
             if (args.Length == 1)
             {
                 if (args[0] == "-w")
                 {
                     AddCredential();
-                    return;
                 }
                 else if (args[0] == "-a")
                 {
-                    configuration = new ConfigurationBuilder()
-                        .AddCredentialManager(string.Empty)
-                        .Build();
+                    GetConfiguration(string.Empty);
+                }
+                else if (args[0] == "-p")
+                {
+                    GetConfiguration<Program>();
                 }
                 else
                 {
                     Console.WriteLine($"Unknown parameter {args[0]}");
-                    return;
+                    HelpString();
                 }
             }
             else if (args.Length == 2)
             {
                 if (args[0] == "-s")
                 {
-                    configuration = new ConfigurationBuilder()
-                        .AddCredentialManager(args[1])
-                        .Build();
+                    GetConfiguration(args[1]);
                 }
                 else if (args[0] == "-d")
                 {
                     RemoveCredential(args[1]);
-                    return;
                 }
                 else
                 {
                     Console.WriteLine($"Unknown parameter {args[0]}");
-                    return;
+                    HelpString();
                 }
             }
             else
             {
-                configuration = new ConfigurationBuilder()
-                    .AddCredentialManager<Program>()
-                    .Build();
+                HelpString();
             }
+        }
 
+        private static void GetConfiguration<T>() where T : class
+        {
+            configuration = new ConfigurationBuilder()
+            .AddCredentialManager<T>()
+            .Build();
+
+            DumpCredentialKeys();
+        }
+        private static void GetConfiguration(string prefix)
+        {
+            configuration = new ConfigurationBuilder()
+            .AddCredentialManager(prefix)
+            .Build();
+
+            DumpCredentialKeys();
+        }
+
+        private static void DumpCredentialKeys()
+        {
             foreach (var config in configuration.AsEnumerable())
             {
                 Console.WriteLine(config.Key);
