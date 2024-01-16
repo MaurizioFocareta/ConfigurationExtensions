@@ -2,7 +2,7 @@
   "profiles": {
     "TestConsoleApp": {
       "commandName": "Project",
-      "commandLineArgs": "-s MST_"
+      "commandLineArgs": "-s MST"
     }
   }
 }

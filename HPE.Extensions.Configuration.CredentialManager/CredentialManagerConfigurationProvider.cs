@@ -26,7 +26,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
 
             credentials.Load();
 
-            foreach (var credential in credentials)
+            foreach (var credential in credentials.Where(c => c.Type == CredentialType.Generic))
             {
                 Data.Add($"CustomCredentials:{credential.Target}:Username", credential.Username);
                 Data.Add($"CustomCredentials:{credential.Target}:Password", credential.Password);
