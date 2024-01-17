@@ -7,6 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HPE.Extensions.Configuratio
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecretsManager", "SecretsManager\SecretsManager.csproj", "{8F492A5B-DFBD-406A-B8A6-7213AE44C52C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{443E0DB4-955E-480E-B3BA-BF5F1D104C63}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HPE.Extensions.Configuration.Legacy", "HPE.Extensions.Configuration.Legacy\HPE.Extensions.Configuration.Legacy.csproj", "{A3616290-E76E-438D-9CBA-D011BEAB7BB1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +28,10 @@ Global
 		{8F492A5B-DFBD-406A-B8A6-7213AE44C52C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8F492A5B-DFBD-406A-B8A6-7213AE44C52C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8F492A5B-DFBD-406A-B8A6-7213AE44C52C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3616290-E76E-438D-9CBA-D011BEAB7BB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3616290-E76E-438D-9CBA-D011BEAB7BB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3616290-E76E-438D-9CBA-D011BEAB7BB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3616290-E76E-438D-9CBA-D011BEAB7BB1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
