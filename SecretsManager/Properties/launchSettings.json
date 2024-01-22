@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "TestConsoleApp": {
+    "SecretsManager": {
       "commandName": "Project",
-      "commandLineArgs": "-s MST"
+      "commandLineArgs": "-e Test"
     }
   }
 }

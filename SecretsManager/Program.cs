@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace SecretsManager
 {
@@ -11,15 +12,16 @@ namespace SecretsManager
 
         private static void HelpString()
         {
-            Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2023)");
+            Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2024)");
             Console.WriteLine();
             Console.WriteLine("SecretsManager [-w] [-a] [-p] [-s <Filter>] [-d <Target>]");
             Console.WriteLine();
-            Console.WriteLine("-w\t\tAdd new generic credential for the current user");
-            Console.WriteLine("-a\t\tGet all generic credential keys for the current user");
-            Console.WriteLine("-p\t\tGet all generic credential keys for the current user with Target based on assembly attribute");
-            Console.WriteLine("\t\tThe assembly is searched for the CredentialManagerPrefixId attribute");
-            Console.WriteLine("-s <Filter>\tGet all generic credential keys for the current user with Target starting with <Filter>");
+            Console.WriteLine("-w\t\tAdd new generic credentials for the current user");
+            Console.WriteLine("-e <Target>\tEdit generic credentials for the current user with the given <Target>");
+            Console.WriteLine("-a\t\tGet all generic credentials for the current user");
+            Console.WriteLine("-p\t\tGet all generic credentials for the current user with Target based on assembly attribute");
+            Console.WriteLine("\t\t(The assembly is searched for the CredentialManagerPrefixId attribute)");
+            Console.WriteLine("-s <Filter>\tGet all generic credentials for the current user with Target starting with <Filter>");
             Console.WriteLine("-d <Target>\tRemoves the generic credentials for the current user with the given <Target>");
             Console.WriteLine();
         }
@@ -56,6 +58,10 @@ namespace SecretsManager
                 {
                     RemoveCredential(args[1]);
                 }
+                else if (args[0] == "-e")
+                {
+                    EditCredential(args[1]);
+                }
                 else
                 {
                     Console.WriteLine($"Unknown parameter {args[0]}");
@@ -65,6 +71,31 @@ namespace SecretsManager
             else
             {
                 HelpString();
+            }
+        }
+
+        private static void EditCredential(string targetName)
+        {
+            var existingCred = new Credential()
+            {
+                Target = targetName
+            };
+
+            try
+            {
+                if (!existingCred.Load())
+                {
+                    Console.WriteLine($"Credential with target name '{targetName}' does not exists.");
+                    return;
+                }
+                else
+                {
+                    AddCredential(existingCred);
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine($"Error reading credential with target name '{targetName}': {exc.Message}");
             }
         }
 
@@ -89,31 +120,124 @@ namespace SecretsManager
         {
             foreach (var config in configuration.AsEnumerable())
             {
-                Console.WriteLine(config.Key);
+                if (!string.IsNullOrEmpty(config.Value))
+                {
+                    if (config.Key.EndsWith("Password"))
+                    {
+                        Console.WriteLine($"{config.Key}: ***");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{config.Key}: {config.Value}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(config.Key);
+                }
             }
         }
 
         private static void RemoveCredential(string targetName)
         {
-            var newCred = new Credential()
+            var existingCred = new Credential()
             {
                 Target = targetName
             };
 
-            newCred.Delete();
+            try
+            {
+                if (!existingCred.Delete())
+                {
+                    Console.WriteLine($"Error deleting the credential with target '{existingCred.Target}'");
+                }
+                else
+                {
+                    Console.WriteLine($"Credential with target '{existingCred.Target}' deleted");
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine($"Error deleting credential with target name {targetName}: {exc.Message}");
+            }
         }
 
-        private static void AddCredential()
+        private static void AddCredential(Credential existingCredential = null)
         {
-            Console.Write("TargetName: ");
-            var targetName = Console.ReadLine();
-            Console.Write("Username: ");
-            var username = Console.ReadLine();
-            Console.Write("Password: ");
-            var password = ReadPassword(false);
+            if (existingCredential != null)
+            {
+                Console.WriteLine($"TargetName: {existingCredential.Target}");
+                Console.Write($"Username (current: {existingCredential.Username}): ");
+                var username = Console.ReadLine();
+                if (username != null)
+                {
+                    if (username == string.Empty)
+                    {
+                        username = existingCredential.Username;
+                    }
+                    Console.Write("Password: ");
+                    var password = ReadPassword(false);
+                    if (string.IsNullOrEmpty(password))
+                    {
+                        password = existingCredential.Password;
+                    }
 
-            var newCred = new Credential(username, password, targetName, CredentialType.Generic, PersistanceType.LocalComputer);
-            newCred.Save();
+                    existingCredential.Username = username;
+                    existingCredential.Password = password;
+
+                    try
+                    {
+                        if (!existingCredential.Save())
+                        {
+                            Console.WriteLine($"Error editing the credential with target name '{existingCredential.Target}'");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Credential with target name '{existingCredential.Target}' updated");
+                        }
+                    }
+                    catch (Exception exc)
+                    {
+                        Console.WriteLine($"Error editing the credential with target name '{existingCredential.Target}': {exc.Message}");
+                    }
+                }
+            }
+            else
+            {
+                Console.Write("TargetName: ");
+                var targetName = Console.ReadLine();
+
+                if (string.IsNullOrEmpty(targetName))
+                {
+                    Console.WriteLine($"Target name cannot be empty!");
+                    return;
+                }
+
+                Console.Write("Username: ");
+                var username = Console.ReadLine();
+                if (username != null)
+                {
+                    Console.Write("Password: ");
+                    var password = ReadPassword(false);
+
+                    try
+                    {
+                        var newCred = new Credential(username, password, targetName, CredentialType.Generic, PersistanceType.LocalComputer);
+                        if (!newCred.Save())
+                        {
+                            Console.WriteLine($"Error adding the new credential");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"New credential with target name '{newCred.Target}' added");
+                        }
+                    }
+                    catch (Exception exc)
+                    {
+                        Console.WriteLine($"Error adding the new credential with target name {targetName}': {exc.Message}");
+                    }
+                }
+            }
         }
 
         private static string ReadPassword(bool withEcho)
