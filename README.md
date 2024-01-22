@@ -20,7 +20,7 @@ The credentials are mapped to keys with "CustomCredentials:[TargetName]:Username
 
 # SecretsManager
 
-A simple console application to get/add/delete credentials from the Windows Credential Store. 
+A simple console application to get/add/edit/delete credentials from the Windows Credential Store. 
 
 The tool manages "Generic" CredentialType credentials in the store of the current user.
 
