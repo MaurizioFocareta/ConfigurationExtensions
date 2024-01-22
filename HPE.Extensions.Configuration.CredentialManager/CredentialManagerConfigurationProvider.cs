@@ -28,8 +28,25 @@ namespace HPE.Extensions.Configuration.CredentialManager
 
             foreach (var credential in credentials.Where(c => c.Type == CredentialType.Generic))
             {
-                Data.Add($"CustomCredentials:{credential.Target}:Username", credential.Username);
-                Data.Add($"CustomCredentials:{credential.Target}:Password", credential.Password);
+                var usernameKey = $"CustomCredentials:{credential.Target}:Username";
+                if (Data.ContainsKey(usernameKey))
+                {
+                    Data[usernameKey] = credential.Username;
+                }
+                else
+                {
+                    Data.Add(usernameKey, credential.Username);
+                }
+
+                var passwordKey = $"CustomCredentials:{credential.Target}:Password";
+                if (Data.ContainsKey(passwordKey))
+                {
+                    Data[passwordKey] = credential.Password;
+                }
+                else
+                {
+                    Data.Add(passwordKey, credential.Password);
+                }
             }
         }
 

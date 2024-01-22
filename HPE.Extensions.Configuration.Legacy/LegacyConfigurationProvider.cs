@@ -23,12 +23,27 @@ namespace HPE.Extensions.Configuration.Legacy
         {
             foreach (System.Configuration.ConnectionStringSettings connectionString in _configuration.ConnectionStrings.ConnectionStrings)
             {
-                Data.Add($"ConnectionStrings:{connectionString.Name}", connectionString.ConnectionString);
+                var connectionStringKey = $"ConnectionStrings:{connectionString.Name}";
+                if (Data.ContainsKey(connectionStringKey))
+                {
+                    Data[connectionStringKey] = connectionString.ConnectionString;
+                }
+                else
+                {
+                    Data.Add(connectionStringKey, connectionString.ConnectionString);
+                }
             }
 
             foreach (var settingKey in _configuration.AppSettings.Settings.AllKeys)
             {
-                Data.Add(settingKey, _configuration.AppSettings.Settings[settingKey].Value);
+                if (Data.ContainsKey(settingKey))
+                {
+                    Data[settingKey] = _configuration.AppSettings.Settings[settingKey].Value;
+                }
+                else
+                {
+                    Data.Add(settingKey, _configuration.AppSettings.Settings[settingKey].Value);
+                }
             }
         }
 
