@@ -6,6 +6,11 @@ namespace HPE.Extensions.Configuration.Legacy
     {
         private readonly System.Configuration.Configuration _configuration;
 
+        public LegacyConfigurationProvider(System.Configuration.Configuration configuration)
+        {
+            _configuration = configuration;
+        }
+
         public LegacyConfigurationProvider(string path)
         {
             if (path == null)

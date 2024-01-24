@@ -15,7 +15,10 @@ namespace HPE.Extensions.Configuration.CredentialManager
     public static class LegacyConfigurationExtentions
     {
         public static IConfigurationBuilder AddLegacy(this IConfigurationBuilder configuration)
-            => AddLegacy(configuration, null);
+            => AddLegacy(configuration, configPath: null);
+
+        public static IConfigurationBuilder AddLegacy(this IConfigurationBuilder configuration, System.Configuration.Configuration legacyConfiguration)
+            => AddLegacyInternal(configuration, legacyConfiguration);
 
         public static IConfigurationBuilder AddLegacy(this IConfigurationBuilder configuration, string configPath)
             => AddLegacyInternal(configuration, configPath);
@@ -28,6 +31,15 @@ namespace HPE.Extensions.Configuration.CredentialManager
             }
 
             return configuration.Add(new LegacyConfigurationProvider(configPath));
+        }
+        private static IConfigurationBuilder AddLegacyInternal(IConfigurationBuilder configuration, System.Configuration.Configuration legacyConfiguration)
+        {
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+            return configuration.Add(new LegacyConfigurationProvider(legacyConfiguration));
         }
     }
 }
