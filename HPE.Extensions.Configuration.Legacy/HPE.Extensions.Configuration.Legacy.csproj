@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>;net472;net48;net7.0;net8.0</TargetFrameworks>
+		<TargetFrameworks>net472;net48;net7.0;net8.0</TargetFrameworks>
 		<Title>HPE.Extensions.Configuration.Legacy</Title>
 		<Copyright>2023</Copyright>
 		<SignAssembly>True</SignAssembly>
