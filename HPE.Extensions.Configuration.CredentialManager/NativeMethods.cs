@@ -1,18 +1,48 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 
 namespace HPE.Extensions.Configuration.CredentialManager
 {
     public class NativeMethods
     {
+        #region Public Constants
         public const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512;
 
         public const int CREDUI_MAX_USERNAME_LENGTH = 513;
         public const int CREDUI_MAX_PASSWORD_LENGTH = 256;
         public const int CREDUI_MAX_MESSAGE_LENGTH = 32767;
         public const int CREDUI_MAX_CAPTION_LENGTH = 128;
+        #endregion
+
+        #region Internal Constants
+        internal const int PI_NOUI = 0x00000001;
+        internal const int SE_PRIVILEGE_ENABLED = 0x2;
+        internal const uint TOKEN_ADJUST_PRIVILEGES = 0x20;
+        internal const uint TOKEN_QUERY = 0x0008;
+        internal const int LOGON32_LOGON_INTERACTIVE = 2;
+        internal const int LOGON32_PROVIDER_DEFAULT = 0;
+        #endregion
+
+        #region Internal Types
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        internal struct PROFILEINFO
+        {
+            public int dwSize;
+            public int dwFlags;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpUserName;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpProfilePath;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpDefaultPath;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpServerName;
+            [MarshalAs(UnmanagedType.LPWStr)]
+            public string lpPolicyPath;
+            public IntPtr hProfile;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct CREDENTIAL
@@ -136,6 +166,28 @@ namespace HPE.Extensions.Configuration.CredentialManager
             SCARD_W_WRONG_CHV = (int)(0x8010006B - 0x100000000)
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct LUID
+        {
+            public uint LowPart;
+            public int HighPart;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct LUID_AND_ATTRIBUTES
+        {
+            public LUID Luid;
+            public int Attributes;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct TOKEN_PRIVILEGES
+        {
+            public int PrivilegeCount;
+            public LUID_AND_ATTRIBUTES Privileges;
+        }
+        #endregion
+
         #region advapi32.dll imports
         [DllImport("advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredRead(string target, CredentialType type, int reservedFlag, out IntPtr CredentialPtr);
@@ -151,6 +203,26 @@ namespace HPE.Extensions.Configuration.CredentialManager
 
         [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredEnumerateW(string filter, int flag, out uint count, out IntPtr pCredentials);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern bool LogonUser(string lpszUsername, string lpszDomain, IntPtr lpszPassword, int dwLogonType, int dwLogonProvider, out SafeAccessTokenHandle phToken);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, out LUID lpLuid);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool AdjustTokenPrivileges(IntPtr TokenHandle, bool DisableAllPrivileges, ref TOKEN_PRIVILEGES NewState, int BufferLength, IntPtr PreviousState, IntPtr ReturnLength);
+        #endregion
+
+        #region userenv.dll
+        [DllImport("userenv.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern bool LoadUserProfile(SafeAccessTokenHandle hToken, ref PROFILEINFO lpProfileInfo);
+
+        [DllImport("userenv.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern bool UnloadUserProfile(SafeAccessTokenHandle hToken, IntPtr hProfile);
         #endregion
 
         #region credui.dll imports
@@ -173,12 +245,11 @@ namespace HPE.Extensions.Configuration.CredentialManager
         #endregion
 
         #region kernel32.dll imports
-        /// <summary>
-        /// Fills a block of memory with zeros in a way that cannot be optimized away by the JIT.
-        /// Uses RtlZeroMemory via P/Invoke — the external call boundary prevents dead store elimination.
-        /// </summary>
         [DllImport("kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
         internal static extern void SecureZeroMemory(IntPtr dest, UIntPtr size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool CloseHandle(IntPtr hObject);
         #endregion
     }
 }

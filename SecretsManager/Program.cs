@@ -2,8 +2,9 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
+using System.Security;
+using System.Security.Principal;
 using System.Text.RegularExpressions;
 
 namespace SecretsManager
@@ -16,21 +17,25 @@ namespace SecretsManager
         private static string _searchValue = null;
         
         private static bool _impersonate = false;
+
         private static string _impersonateUser = null;
+        private static SecureString _impersonatePassword = null;
 
         private static void ShowHelp()
         {
             Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2024)");
             Console.WriteLine($"Build: {Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
-            Console.WriteLine("SecretsManager /u:user [[/w]|[/e:<Target>]|[/a]|[/s:<Filter>]|[/d:<Target>][/p]");
+            Console.WriteLine("SecretsManager /u:user [[/w]|[/e:<Target>]|[/a]|[/s:<Filter>]|[/d:<Target>]|[/p]");
             Console.WriteLine();
-            Console.WriteLine("/w\t\tAdd new generic credentials for the current user");
-            Console.WriteLine("/e:<Target>\tEdit generic credentials for the current user with the given <Target>");
-            Console.WriteLine("/a\t\tGet all generic credentials for the current user");
-            Console.WriteLine("/s:<Filter>\tGet all generic credentials for the current user with Target starting with <Filter>");
-            Console.WriteLine("/d:<Target>\tRemoves the generic credentials for the current user with the given <Target>");
-            Console.WriteLine("/p\t\tGet all generic credentials for the current user with Target based on assembly attribute");
+            Console.WriteLine("/u\t\tThe action is performed in the context of the given user");
+            Console.WriteLine("\t\t(You will be prompted for the password. This option requires elevated privileges)");
+            Console.WriteLine("/w\t\tAdd new generic credentials");
+            Console.WriteLine("/e:<Target>\tEdit generic credentials with the given <Target>");
+            Console.WriteLine("/a\t\tGet all generic credentials");
+            Console.WriteLine("/s:<Filter>\tGet all generic credentials with Target starting with <Filter>");
+            Console.WriteLine("/d:<Target>\tRemoves the generic credentials with the given <Target>");
+            Console.WriteLine("/p\t\tGet all generic credentials with Target based on assembly attribute");
             Console.WriteLine("\t\t(The assembly is searched for the CredentialManagerPrefixId attribute)");
             Console.WriteLine();
         }
@@ -45,32 +50,46 @@ namespace SecretsManager
             {
                 if (ParseParameters(args))
                 {
+                    Action action = null;
                     switch (_actionType)
                     {
                         case ActionType.ShowHelp:
                             ShowHelp();
                             break;
                         case ActionType.Search:
-                            GetConfiguration(_searchValue);
+                            action = new Action(() => GetConfiguration(_searchValue));
                             break;
                         case ActionType.SearchAll:
-                            GetConfiguration(string.Empty);
+                            action = new Action(() => GetConfiguration(string.Empty));
                             break;
                         case ActionType.SearchAssembly:
-                            GetConfiguration<Program>();
+                            action = new Action(() => GetConfiguration<Program>());
                             break;
                         case ActionType.Add:
-                            AddCredential();
+                            action = new Action(() => AddCredential());
                             break;
                         case ActionType.Edit:
-                            EditCredential(_searchValue);
+                            action = new Action(() => EditCredential(_searchValue));
                             break;
                         case ActionType.Delete:
-                            RemoveCredential(_searchValue);
+                            action = new Action(() => RemoveCredential(_searchValue));
                             break;
                         default:
                             Console.WriteLine($"Select an action. Use /h or no argument for the help.");
                             break;
+                    }
+
+                    if (action != null)
+                    {
+                        if (_impersonate)
+                        {
+                            var (user, domain, kind) = IdentityParser.DecideForLogonUser(_impersonateUser);
+                            ImpersonationHelper.RunAs(domain, user, _impersonatePassword, action);
+                        }
+                        else
+                        {
+                            action();
+                        }
                     }
                 }
             }
@@ -80,7 +99,7 @@ namespace SecretsManager
         {
             foreach (var arg in args)
             {
-                Regex argRegEx = new Regex("/(?<Switch>\\w):?(?<Value>.*)?");
+                Regex argRegEx = new Regex("/(?<Switch>[A-Za-z?]):?(?<Value>.*)?");
                 var match = argRegEx.Match(arg);
                 if (!match.Success)
                 {
@@ -90,7 +109,7 @@ namespace SecretsManager
 
                 if (_actionType != ActionType.None)
                 {
-                    Console.WriteLine($"Use only one option between /w /e /a /s /d /p");
+                    Console.WriteLine($"Use only one option between /? /w /e /a /s /d /p");
                     return false;
                 }
 
@@ -99,6 +118,9 @@ namespace SecretsManager
 
                 switch (action)
                 {
+                    case "?":
+                        _actionType = ActionType.ShowHelp;
+                        break;
                     case "w":
                         _actionType = ActionType.Add;
                         break;
@@ -143,6 +165,14 @@ namespace SecretsManager
                             Console.WriteLine($"Missing value in \"/u\" option");
                             return false;
                         }
+
+                        if (!IsProcessElevated())
+                        {
+                            Console.WriteLine($"Impersonation requires elevated privileges. Please run the application as administrator.");
+                            return false;
+                        }
+
+                        _impersonatePassword = ReadPasswordSecure($"Password for user {_impersonateUser}: ", true);
                         break;
                     default:
                         Console.WriteLine($"Unknown option - \"/{action}\"");
@@ -153,68 +183,21 @@ namespace SecretsManager
             return true;
         }
 
-        private static void EditCredential(string targetName)
-        {
-            var existingCred = new Credential()
-            {
-                Target = targetName
-            };
-
-            try
-            {
-                if (!existingCred.Load())
-                {
-                    Console.WriteLine($"Credential with target name '{targetName}' does not exists.");
-                    return;
-                }
-                else
-                {
-                    AddCredential(existingCred);
-                }
-            }
-            catch (Exception exc)
-            {
-                Console.WriteLine($"Error reading credential with target name '{targetName}': {exc.Message}");
-            }
-        }
-
         private static void GetConfiguration<T>() where T : class
         {
             configuration = new ConfigurationBuilder()
-            .AddCredentialManager<T>()
-            .Build();
+                .AddCredentialManager<T>()
+                .Build();
 
             DumpCredentialKeys();
         }
         private static void GetConfiguration(string prefix)
         {
             configuration = new ConfigurationBuilder()
-            .AddCredentialManager(prefix)
-            .Build();
+                .AddCredentialManager(prefix)
+                .Build();
 
             DumpCredentialKeys();
-        }
-
-        private static void DumpCredentialKeys()
-        {
-            foreach (var config in configuration.AsEnumerable())
-            {
-                if (!string.IsNullOrEmpty(config.Value))
-                {
-                    if (config.Key.EndsWith("Password"))
-                    {
-                        Console.WriteLine($"{config.Key}: ***");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{config.Key}: {config.Value}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine(config.Key);
-                }
-            }
         }
 
         private static void RemoveCredential(string targetName)
@@ -240,7 +223,6 @@ namespace SecretsManager
                 Console.WriteLine($"Error deleting credential with target name {targetName}: {exc.Message}");
             }
         }
-
         private static void AddCredential(Credential existingCredential = null)
         {
             if (existingCredential != null)
@@ -254,8 +236,8 @@ namespace SecretsManager
                     {
                         username = existingCredential.Username;
                     }
-                    Console.Write("Password: ");
-                    var password = ReadPassword(false);
+
+                    var password = ReadPassword("Password: ", false);
                     if (string.IsNullOrEmpty(password))
                     {
                         password = existingCredential.Password;
@@ -296,8 +278,7 @@ namespace SecretsManager
                 var username = Console.ReadLine();
                 if (username != null)
                 {
-                    Console.Write("Password: ");
-                    var password = ReadPassword(false);
+                    var password = ReadPassword("Password: ", false);
 
                     try
                     {
@@ -318,10 +299,61 @@ namespace SecretsManager
                 }
             }
         }
+        private static void EditCredential(string targetName)
+        {
+            var existingCred = new Credential()
+            {
+                Target = targetName
+            };
 
-        private static string ReadPassword(bool withEcho)
+            try
+            {
+                if (!existingCred.Load())
+                {
+                    Console.WriteLine($"Credential with target name '{targetName}' does not exists.");
+                    return;
+                }
+                else
+                {
+                    AddCredential(existingCred);
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine($"Error reading credential with target name '{targetName}': {exc.Message}");
+            }
+        }
+
+        private static void DumpCredentialKeys()
+        {
+            foreach (var config in configuration.AsEnumerable())
+            {
+                if (!string.IsNullOrEmpty(config.Value))
+                {
+                    if (config.Key.EndsWith("Password"))
+                    {
+                        Console.WriteLine($"{config.Key}: ***");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{config.Key}: {config.Value}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(config.Key);
+                }
+            }
+        }
+
+        private static string ReadPassword(string message, bool withEcho)
         {
             string password = string.Empty;
+
+            if (message != null)
+            {
+                Console.Write(message);
+            }
 
             ConsoleKey key;
             do
@@ -350,6 +382,61 @@ namespace SecretsManager
             Console.WriteLine();
 
             return password;
+        }
+        private static SecureString ReadPasswordSecure(string message, bool withEcho)
+        {
+            var secure = new SecureString();
+
+            if (message != null)
+            {
+                Console.Write(message);
+            }
+
+            try
+            {
+                ConsoleKey key;
+                do
+                {
+                    var keyInfo = Console.ReadKey(intercept: true);
+                    key = keyInfo.Key;
+
+                    if (key == ConsoleKey.Backspace && secure.Length > 0)
+                    {
+                        if (withEcho)
+                        {
+                            Console.Write("\b \b");
+                        }
+                        secure.RemoveAt(secure.Length - 1);
+                    }
+                    else if (!char.IsControl(keyInfo.KeyChar))
+                    {
+                        if (withEcho)
+                        {
+                            Console.Write("*");
+                        }
+                        secure.AppendChar(keyInfo.KeyChar);
+                    }
+                } while (key != ConsoleKey.Enter);
+
+                Console.WriteLine();
+
+                secure.MakeReadOnly();
+                return secure;
+            }
+            catch
+            {
+                secure.Dispose();
+                throw;
+            }
+        }
+
+        static bool IsProcessElevated()
+        {
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            {
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                return principal.IsInRole(WindowsBuiltInRole.Administrator);
+            }
         }
     }
 }
