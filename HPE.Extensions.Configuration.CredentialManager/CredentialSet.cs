@@ -90,8 +90,8 @@ namespace HPE.Extensions.Configuration.CredentialManager
 
             // Now let's go through all of the pointers in the list
             // and create our Credential object(s)
-            List<NativeMethods.CriticalCredentialHandle> credentialHandles =
-                ptrCredList.Select(ptrCred => new NativeMethods.CriticalCredentialHandle(ptrCred)).ToList();
+            List<CriticalCredentialHandle> credentialHandles =
+                ptrCredList.Select(ptrCred => new CriticalCredentialHandle(ptrCred)).ToList();
 
             IEnumerable<Credential> existingCredentials = credentialHandles
                 .Select(handle => handle.GetCredential())

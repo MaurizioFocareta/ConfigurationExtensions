@@ -14,7 +14,6 @@ namespace HPE.Extensions.Configuration.CredentialManager
         public const int CREDUI_MAX_MESSAGE_LENGTH = 32767;
         public const int CREDUI_MAX_CAPTION_LENGTH = 128;
 
-
         [StructLayout(LayoutKind.Sequential)]
         internal struct CREDENTIAL
         {
@@ -25,7 +24,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
             [MarshalAs(UnmanagedType.LPWStr)]
             public string Comment;
             public long LastWritten;
-            public int CredentialBlobSize;
+            public uint CredentialBlobSize;
             public IntPtr CredentialBlob;
             public int Persist;
             public int AttributeCount;
@@ -35,7 +34,6 @@ namespace HPE.Extensions.Configuration.CredentialManager
             [MarshalAs(UnmanagedType.LPWStr)]
             public string UserName;
         }
-
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct CREDUI_INFO
@@ -138,76 +136,49 @@ namespace HPE.Extensions.Configuration.CredentialManager
             SCARD_W_WRONG_CHV = (int)(0x8010006B - 0x100000000)
         }
 
-        [DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
+        #region advapi32.dll imports
+        [DllImport("advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredRead(string target, CredentialType type, int reservedFlag, out IntPtr CredentialPtr);
 
-        [DllImport("Advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
+        [DllImport("advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredWrite([In] ref CREDENTIAL userCredential, [In] UInt32 flags);
 
-        [DllImport("Advapi32.dll", EntryPoint = "CredFree", SetLastError = true)]
+        [DllImport("advapi32.dll", EntryPoint = "CredFree", SetLastError = true)]
         internal static extern bool CredFree([In] IntPtr cred);
 
-        [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode)]
+        [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredDelete(StringBuilder target, CredentialType type, int flags);
 
-        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredEnumerateW(string filter, int flag, out uint count, out IntPtr pCredentials);
+        #endregion
 
-        [DllImport("credui.dll")]
+        #region credui.dll imports
+        [DllImport("credui.dll", SetLastError = true)]
         internal static extern CredUIReturnCodes CredUIPromptForCredentials(ref CREDUI_INFO creditUR, string targetName, IntPtr reserved1, int iError, StringBuilder userName, int maxUserName, StringBuilder password, int maxPassword, [MarshalAs(UnmanagedType.Bool)] ref bool pfSave, int flags);
 
-        [DllImport("credui.dll", CharSet = CharSet.Unicode)]
+        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern CredUIReturnCodes CredUIPromptForWindowsCredentials(ref CREDUI_INFO notUsedHere, int authError, ref uint authPackage, IntPtr InAuthBuffer, uint InAuthBufferSize, out IntPtr refOutAuthBuffer, out uint refOutAuthBufferSize, ref bool fSave, int flags);
-
-        [DllImport("ole32.dll")]
-        internal static extern void CoTaskMemFree(IntPtr ptr);
 
         [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern Boolean CredPackAuthenticationBuffer(int dwFlags, StringBuilder pszUserName, StringBuilder pszPassword, IntPtr pPackedCredentials, ref int pcbPackedCredentials);
 
-        [DllImport("credui.dll", CharSet = CharSet.Auto)]
+        [DllImport("credui.dll", CharSet = CharSet.Auto, SetLastError = true)]
         internal static extern bool CredUnPackAuthenticationBuffer(int dwFlags, IntPtr pAuthBuffer, uint cbAuthBuffer, StringBuilder pszUserName, ref int pcchMaxUserName, StringBuilder pszDomainName, ref int pcchMaxDomainame, StringBuilder pszPassword, ref int pcchMaxPassword);
+        #endregion
 
-        internal sealed class CriticalCredentialHandle : CriticalHandleZeroOrMinusOneIsInvalid
-        {
-            // Set the handle.
-            internal CriticalCredentialHandle(IntPtr preexistingHandle)
-            {
-                SetHandle(preexistingHandle);
-            }
+        #region ole32.dll imports
+        [DllImport("ole32.dll", SetLastError = true)]
+        internal static extern void CoTaskMemFree(IntPtr ptr);
+        #endregion
 
-            internal CREDENTIAL GetCredential()
-            {
-                if (!IsInvalid)
-                {
-                    // Get the Credential from the mem location
-                    return (CREDENTIAL)Marshal.PtrToStructure(handle, typeof(CREDENTIAL));
-                }
-                else
-                {
-                    throw new InvalidOperationException("Invalid CriticalHandle!");
-                }
-            }
-
-            // Perform any specific actions to release the handle in the ReleaseHandle method.
-            // Often, you need to use Pinvoke to make a call into the Win32 API to release the 
-            // handle. In this case, however, we can use the Marshal class to release the unmanaged memory.
-
-            override protected bool ReleaseHandle()
-            {
-                // If the handle was set, free it. Return success.
-                if (!IsInvalid)
-                {
-                    // NOTE: We should also ZERO out the memory allocated to the handle, before free'ing it
-                    // so there are no traces of the sensitive data left in memory.
-                    CredFree(handle);
-                    // Mark the handle as invalid for future users.
-                    SetHandleAsInvalid();
-                    return true;
-                }
-                // Return false. 
-                return false;
-            }
-        }
+        #region kernel32.dll imports
+        /// <summary>
+        /// Fills a block of memory with zeros in a way that cannot be optimized away by the JIT.
+        /// Uses RtlZeroMemory via P/Invoke — the external call boundary prevents dead store elimination.
+        /// </summary>
+        [DllImport("kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
+        internal static extern void SecureZeroMemory(IntPtr dest, UIntPtr size);
+        #endregion
     }
 }

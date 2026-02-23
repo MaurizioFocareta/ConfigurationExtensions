@@ -12,7 +12,9 @@ namespace HPE.Extensions.Configuration.CredentialManager
         bool _disposed;
 
         CredentialType _type;
+        int _flags;
         string _target;
+        string _targetAlias;
         SecureString _password;
         string _username;
         string _description;
@@ -146,6 +148,20 @@ namespace HPE.Extensions.Configuration.CredentialManager
             }
         }
 
+        public string TargetAlias
+        {
+            get
+            {
+                CheckNotDisposed();
+                return _targetAlias;
+            }
+            set
+            {
+                CheckNotDisposed();
+                _targetAlias = value;
+            }
+        }
+
         public string Description
         {
             get
@@ -191,6 +207,20 @@ namespace HPE.Extensions.Configuration.CredentialManager
             }
         }
 
+        public int Flags
+        {
+            get
+            {
+                CheckNotDisposed();
+                return _flags;
+            }
+            set
+            {
+                CheckNotDisposed();
+                _flags = value;
+            }
+        }
+
         public PersistanceType PersistanceType
         {
             get
@@ -228,7 +258,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
                 TargetName = Target,
                 UserName = Username,
                 CredentialBlob = Marshal.StringToCoTaskMemUni(Password),
-                CredentialBlobSize = passwordBytes != null ? passwordBytes.Length : 0,
+                CredentialBlobSize = (uint)(passwordBytes != null ? passwordBytes.Length : 0),
                 Comment = Description,
                 Type = (int)Type,
                 Persist = (int)PersistanceType
@@ -266,7 +296,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
             {
                 return false;
             }
-            using (NativeMethods.CriticalCredentialHandle credentialHandle = new NativeMethods.CriticalCredentialHandle(credPointer))
+            using (CriticalCredentialHandle credentialHandle = new CriticalCredentialHandle(credPointer))
             {
                 LoadInternal(credentialHandle.GetCredential());
             }
@@ -292,11 +322,13 @@ namespace HPE.Extensions.Configuration.CredentialManager
         internal void LoadInternal(NativeMethods.CREDENTIAL credential)
         {
             Username = credential.UserName;
-            if (credential.CredentialBlobSize > 0)
+            if (credential.CredentialBlobSize >= 2)
             {
-                Password = Marshal.PtrToStringUni(credential.CredentialBlob, credential.CredentialBlobSize / 2);
+                Password = Marshal.PtrToStringUni(credential.CredentialBlob, (int)(credential.CredentialBlobSize / 2));
             }
             Target = credential.TargetName;
+            TargetAlias = credential.TargetAlias;
+            Flags = credential.Flags;
             Type = (CredentialType)credential.Type;
             PersistanceType = (PersistanceType)credential.Persist;
             Description = credential.Comment;

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace SecretsManager
@@ -20,6 +21,7 @@ namespace SecretsManager
         private static void ShowHelp()
         {
             Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2024)");
+            Console.WriteLine($"Build: {Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
             Console.WriteLine("SecretsManager /u:user [[/w]|[/e:<Target>]|[/a]|[/s:<Filter>]|[/d:<Target>][/p]");
             Console.WriteLine();
