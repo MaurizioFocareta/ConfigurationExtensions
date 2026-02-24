@@ -19,10 +19,25 @@ namespace HPE.Extensions.Configuration.CredentialManager
         #region Internal Constants
         internal const int PI_NOUI = 0x00000001;
         internal const int SE_PRIVILEGE_ENABLED = 0x2;
-        internal const uint TOKEN_ADJUST_PRIVILEGES = 0x20;
-        internal const uint TOKEN_QUERY = 0x0008;
+        internal const int ERROR_NOT_ALL_ASSIGNED = 1300;
+
         internal const int LOGON32_LOGON_INTERACTIVE = 2;
         internal const int LOGON32_PROVIDER_DEFAULT = 0;
+
+        internal const uint STANDARD_RIGHTS_REQUIRED = 0x000F0000;
+        internal const uint STANDARD_RIGHTS_READ = 0x00020000;
+        internal const uint TOKEN_ASSIGN_PRIMARY = 0x0001;
+        internal const uint TOKEN_DUPLICATE = 0x0002;
+        internal const uint TOKEN_IMPERSONATE = 0x0004;
+        internal const uint TOKEN_QUERY = 0x0008;
+        internal const uint TOKEN_QUERY_SOURCE = 0x0010;
+        internal const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        internal const uint TOKEN_ADJUST_GROUPS = 0x0040;
+        internal const uint TOKEN_ADJUST_DEFAULT = 0x0080;
+        internal const uint TOKEN_ADJUST_SESSIONID = 0x0100;
+        internal const uint TOKEN_READ = (STANDARD_RIGHTS_READ | TOKEN_QUERY);
+        internal const uint TOKEN_ALL_ACCESS = (STANDARD_RIGHTS_REQUIRED | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_IMPERSONATE | TOKEN_QUERY | TOKEN_QUERY_SOURCE | TOKEN_ADJUST_PRIVILEGES | TOKEN_ADJUST_GROUPS | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID);
+
         #endregion
 
         #region Internal Types
@@ -166,6 +181,26 @@ namespace HPE.Extensions.Configuration.CredentialManager
             SCARD_W_WRONG_CHV = (int)(0x8010006B - 0x100000000)
         }
 
+        internal enum TOKEN_TYPE : int
+        {
+            TokenPrimary = 1,
+            TokenImpersonation
+        }
+
+        internal enum SECURITY_IMPERSONATION_LEVEL : int
+        {
+            SecurityAnonymous,
+            SecurityIdentification,
+            SecurityImpersonation,
+            SecurityDelegation
+        }
+
+        [Flags]
+        internal enum ProcessAccessFlags : uint
+        {
+            QueryInformation = 0x0400
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         internal struct LUID
         {
@@ -185,6 +220,14 @@ namespace HPE.Extensions.Configuration.CredentialManager
         {
             public int PrivilegeCount;
             public LUID_AND_ATTRIBUTES Privileges;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct SECURITY_ATTRIBUTES
+        {
+            public int nLength;
+            public IntPtr lpSecurityDescriptor;
+            public int bInheritHandle;
         }
         #endregion
 
@@ -215,6 +258,12 @@ namespace HPE.Extensions.Configuration.CredentialManager
 
         [DllImport("advapi32.dll", SetLastError = true)]
         internal static extern bool AdjustTokenPrivileges(IntPtr TokenHandle, bool DisableAllPrivileges, ref TOKEN_PRIVILEGES NewState, int BufferLength, IntPtr PreviousState, IntPtr ReturnLength);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool RevertToSelf();
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        internal static extern bool DuplicateTokenEx(IntPtr hExistingToken, uint dwDesiredAccess, ref SECURITY_ATTRIBUTES lpThreadAttributes, SECURITY_IMPERSONATION_LEVEL ImpersonationLevel, TOKEN_TYPE TokenType, out SafeAccessTokenHandle phNewToken);
         #endregion
 
         #region userenv.dll
@@ -247,6 +296,9 @@ namespace HPE.Extensions.Configuration.CredentialManager
         #region kernel32.dll imports
         [DllImport("kernel32.dll", EntryPoint = "RtlZeroMemory", SetLastError = false)]
         internal static extern void SecureZeroMemory(IntPtr dest, UIntPtr size);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, int processId);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool CloseHandle(IntPtr hObject);

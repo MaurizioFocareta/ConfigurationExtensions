@@ -14,6 +14,8 @@ namespace SecretsManager
         private static IConfigurationRoot configuration;
 
         private static ActionType _actionType = ActionType.None;
+        private static UserType userType = UserType.CurrentUser;
+
         private static string _searchValue = null;
         
         private static bool _impersonate = false;
@@ -26,17 +28,23 @@ namespace SecretsManager
             Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2024)");
             Console.WriteLine($"Build: {Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
-            Console.WriteLine("SecretsManager /u:user [[/w]|[/e:<Target>]|[/a]|[/s:<Filter>]|[/d:<Target>]|[/p]");
+            Console.WriteLine("SecretsManager [/u:user | /ls] [/w | /e:<Target> | /a | /s:<Filter> | /d:<Target> | /p]");
             Console.WriteLine();
-            Console.WriteLine("/u\t\tThe action is performed in the context of the given user");
-            Console.WriteLine("\t\t(You will be prompted for the password. This option requires elevated privileges)");
-            Console.WriteLine("/w\t\tAdd new generic credentials");
-            Console.WriteLine("/e:<Target>\tEdit generic credentials with the given <Target>");
-            Console.WriteLine("/a\t\tGet all generic credentials");
-            Console.WriteLine("/s:<Filter>\tGet all generic credentials with Target starting with <Filter>");
-            Console.WriteLine("/d:<Target>\tRemoves the generic credentials with the given <Target>");
-            Console.WriteLine("/p\t\tGet all generic credentials with Target based on assembly attribute");
-            Console.WriteLine("\t\t(The assembly is searched for the CredentialManagerPrefixId attribute)");
+            Console.WriteLine("User impersonation context:");
+            Console.WriteLine("/u\t\tThe action is performed in the context of the given user. Mutually exclusive with /ls.");
+            Console.WriteLine("\t\t(You will be prompted for the password. This option requires elevated privileges).");
+            Console.WriteLine("/ls\t\tThe action is performed in the context of local system account. Mutually exclusive with /u.");
+            Console.WriteLine("\t\t(This option requires elevated privileges)");
+            Console.WriteLine();
+            Console.WriteLine("\t\tIf /u or /ls is not specified, the action is performed in the context of the current user.");
+            Console.WriteLine("Actions:");
+            Console.WriteLine("/w\t\tAdd new generic credentials.");
+            Console.WriteLine("/e:<Target>\tEdit generic credentials with the given <Target>.");
+            Console.WriteLine("/a\t\tGet all generic credentials.");
+            Console.WriteLine("/s:<Filter>\tGet all generic credentials with Target starting with <Filter>.");
+            Console.WriteLine("/d:<Target>\tRemoves the generic credentials with the given <Target>.");
+            Console.WriteLine("/p\t\tGet all generic credentials with Target based on assembly attribute.");
+            Console.WriteLine("\t\t(The assembly is searched for the CredentialManagerPrefixId attribute).");
             Console.WriteLine();
         }
 
@@ -75,7 +83,7 @@ namespace SecretsManager
                             action = new Action(() => RemoveCredential(_searchValue));
                             break;
                         default:
-                            Console.WriteLine($"Select an action. Use /h or no argument for the help.");
+                            Console.WriteLine($"Select an action. Use /? or no argument for the help.");
                             break;
                     }
 
@@ -83,8 +91,19 @@ namespace SecretsManager
                     {
                         if (_impersonate)
                         {
-                            var (user, domain, kind) = IdentityParser.DecideForLogonUser(_impersonateUser);
-                            ImpersonationHelper.RunAs(domain, user, _impersonatePassword, action);
+                            switch (userType)
+                            {
+                                case UserType.LocalSystem:
+                                    ImpersonationHelper.RunAsLocalSystem(action);
+                                    break;
+                                case UserType.DifferentUser:
+                                    var (user, domain, kind) = IdentityParser.DecideForLogonUser(_impersonateUser);
+                                    ImpersonationHelper.RunAs(domain, user, _impersonatePassword, action);
+                                    break;
+                                default:
+                                    Console.WriteLine($"Invalid user type for impersonation");
+                                    break;
+                            }
                         }
                         else
                         {
@@ -99,7 +118,7 @@ namespace SecretsManager
         {
             foreach (var arg in args)
             {
-                Regex argRegEx = new Regex("/(?<Switch>[A-Za-z?]):?(?<Value>.*)?");
+                Regex argRegEx = new Regex("/(?<Switch>[A-Za-z?]{1,2}):?(?<Value>.*)?");
                 var match = argRegEx.Match(arg);
                 if (!match.Success)
                 {
@@ -157,8 +176,29 @@ namespace SecretsManager
                     case "p":
                         _actionType = ActionType.SearchAssembly;
                         break;
-                    case "u":
+                    case "ls":
+                        if (userType == UserType.DifferentUser)
+                        {
+                            Console.WriteLine($"Use only one option between /u and /ls");
+                            return false;
+                        }
+
+                        if (!IsProcessElevated())
+                        {
+                            Console.WriteLine($"Impersonation requires elevated privileges. Please run the application as administrator.");
+                            return false;
+                        }
+
                         _impersonate = true;
+                        userType = UserType.LocalSystem;
+                        break;
+                    case "u":
+                        if (userType == UserType.LocalSystem)
+                        {
+                            Console.WriteLine($"Use only one option between /u and /ls");
+                            return false;
+                        }
+
                         _impersonateUser = value;
                         if (string.IsNullOrEmpty(_impersonateUser))
                         {
@@ -173,6 +213,9 @@ namespace SecretsManager
                         }
 
                         _impersonatePassword = ReadPasswordSecure($"Password for user {_impersonateUser}: ", true);
+
+                        _impersonate = true;
+                        userType = UserType.DifferentUser;
                         break;
                     default:
                         Console.WriteLine($"Unknown option - \"/{action}\"");

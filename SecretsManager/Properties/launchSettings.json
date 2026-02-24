@@ -2,7 +2,7 @@
   "profiles": {
     "SecretsManager": {
       "commandName": "Project",
-      "commandLineArgs": "/u:focareta /s:MST_"
+      "commandLineArgs": "/ls /s:prisma"
     }
   }
 }

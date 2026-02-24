@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SecretsManager
 {
-    public enum ActionType
+    internal enum ActionType
     {
         None,
         ShowHelp,

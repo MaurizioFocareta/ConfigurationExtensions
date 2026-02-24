@@ -1,8 +1,11 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Security.Cryptography;
+using System.Security.Permissions;
 using System.Security.Principal;
 using static HPE.Extensions.Configuration.CredentialManager.NativeMethods;
 
@@ -12,7 +15,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
     {
         private static void EnablePrivileges(params string[] names)
         {
-            if (!OpenProcessToken(System.Diagnostics.Process.GetCurrentProcess().Handle,
+            if (!OpenProcessToken(Process.GetCurrentProcess().Handle,
                                   TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
                                   out IntPtr hToken))
             {
@@ -24,7 +27,9 @@ namespace HPE.Extensions.Configuration.CredentialManager
                 foreach (var name in names)
                 {
                     if (!LookupPrivilegeValue(null, name, out LUID luid))
+                    {
                         throw new Win32Exception(Marshal.GetLastWin32Error(), $"LookupPrivilegeValue({name}) failed");
+                    }
 
                     var tp = new TOKEN_PRIVILEGES
                     {
@@ -37,13 +42,29 @@ namespace HPE.Extensions.Configuration.CredentialManager
                     };
 
                     if (!AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero))
+                    {
                         throw new Win32Exception(Marshal.GetLastWin32Error(), $"AdjustTokenPrivileges({name}) failed");
+                    }
+
+                    int err = Marshal.GetLastWin32Error();
+                    if (err == ERROR_NOT_ALL_ASSIGNED)
+                    {
+                        throw new Win32Exception(err, $"AdjustTokenPrivileges({name}) failed to assign privilege");
+                    }
                 }
             }
             finally
             {
                 CloseHandle(hToken);
             }
+        }
+        private static int FindProcessId(string name)
+        {
+            foreach (var p in Process.GetProcessesByName(name.Replace(".exe", "")))
+            {
+                return p.Id;
+            }
+            return 0;
         }
 
         /// <summary>
@@ -113,7 +134,7 @@ namespace HPE.Extensions.Configuration.CredentialManager
                         {
                             var err = Marshal.GetLastWin32Error();
                             // You may want to log this but not throw in finally
-                            System.Diagnostics.Debug.WriteLine($"UnloadUserProfile failed: {err}");
+                            Debug.WriteLine($"UnloadUserProfile failed: {err}");
                         }
                     }
                 }
@@ -126,6 +147,53 @@ namespace HPE.Extensions.Configuration.CredentialManager
                 }
 
                 token?.Dispose();
+            }
+        }
+
+        public static void RunAsLocalSystem(Action action, bool noUi = true)
+        {
+            EnablePrivileges("SeDebugPrivilege");
+
+            var processId = FindProcessId("winlogon");
+            if (processId != 0)
+            {
+                IntPtr hProcess = OpenProcess(ProcessAccessFlags.QueryInformation, false, processId);
+                if (hProcess == IntPtr.Zero)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "OpenProcess failed.");
+                }
+
+                if (!OpenProcessToken(hProcess, TOKEN_READ | TOKEN_IMPERSONATE | TOKEN_DUPLICATE, out IntPtr tokenHandle))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "OpenProcessToken failed.");
+                }
+
+                SECURITY_ATTRIBUTES sa = default;
+                sa.nLength = Marshal.SizeOf<SECURITY_ATTRIBUTES>();
+
+                if (!DuplicateTokenEx(tokenHandle, TOKEN_ALL_ACCESS, ref sa, SECURITY_IMPERSONATION_LEVEL.SecurityImpersonation, TOKEN_TYPE.TokenImpersonation, out SafeAccessTokenHandle tokenDuplicated))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "DuplicateTokenEx failed.");
+                }
+
+                try
+                {
+#pragma warning disable CA1416 // Validate platform compatibility
+                    WindowsIdentity.RunImpersonated(tokenDuplicated, action);
+#pragma warning restore CA1416 // Validate platform compatibility
+                }
+                finally
+                {
+                    RevertToSelf();
+
+                    if (hProcess != IntPtr.Zero) CloseHandle(hProcess);
+                    if (tokenHandle != IntPtr.Zero) CloseHandle(tokenHandle);
+                    tokenDuplicated?.Dispose();
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Services.exe not found.");
             }
         }
     }
