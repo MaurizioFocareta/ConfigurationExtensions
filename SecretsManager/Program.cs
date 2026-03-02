@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Security;
 using System.Security.Principal;
@@ -16,6 +17,7 @@ namespace SecretsManager
         private static ActionType _actionType = ActionType.None;
         private static UserType userType = UserType.CurrentUser;
 
+        private static bool _showPasswords = false;
         private static string _searchValue = null;
         
         private static bool _impersonate = false;
@@ -45,7 +47,8 @@ namespace SecretsManager
             Console.WriteLine("/d:<Target>\tRemoves the generic credentials with the given <Target>.");
             Console.WriteLine("/p\t\tGet all generic credentials with Target based on assembly attribute.");
             Console.WriteLine("\t\t(The assembly is searched for the CredentialManagerPrefixId attribute).");
-            Console.WriteLine();
+            Console.WriteLine("Flags:");
+            Console.WriteLine("/sh\t\tShow secret passwords for /a and /s actions. Ignored for other actions.");
         }
 
         static void Main(string[] args)
@@ -126,14 +129,17 @@ namespace SecretsManager
                     return false;
                 }
 
-                if (_actionType != ActionType.None)
-                {
-                    Console.WriteLine($"Use only one option between /? /w /e /a /s /d /p");
-                    return false;
-                }
-
                 var action = match.Groups["Switch"].Value;
                 var value = match.Groups["Value"].Value;
+
+                if (_actionType != ActionType.None)
+                {
+                    if (action != "sh")
+                    {
+                        Console.WriteLine($"Use only one option between /? /w /e /a /s /d /p");
+                        return false;
+                    }
+                }
 
                 switch (action)
                 {
@@ -191,6 +197,9 @@ namespace SecretsManager
 
                         _impersonate = true;
                         userType = UserType.LocalSystem;
+                        break;
+                    case "sh":
+                        _showPasswords = true;
                         break;
                     case "u":
                         if (userType == UserType.LocalSystem)
@@ -373,7 +382,7 @@ namespace SecretsManager
             {
                 if (!string.IsNullOrEmpty(config.Value))
                 {
-                    if (config.Key.EndsWith("Password"))
+                    if (config.Key.EndsWith("Password") && !_showPasswords)
                     {
                         Console.WriteLine($"{config.Key}: ***");
                     }
