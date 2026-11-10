@@ -2,7 +2,7 @@
   "profiles": {
     "SecretsManager": {
       "commandName": "Project",
-      "commandLineArgs": "/ls /s:prisma"
+      "commandLineArgs": "/u:fglab\\sMSA$ /e:TestTarget"
     }
   }
 }

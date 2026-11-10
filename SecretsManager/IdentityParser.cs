@@ -6,7 +6,8 @@ namespace SecretsManager
     {
         Local,
         DomainUPN,
-        DomainSam
+        DomainSam,
+        DomainMSA
     }
 
     public sealed class ParsedIdentity
@@ -77,6 +78,19 @@ namespace SecretsManager
                 }
 
                 // Otherwise we assume domain/trusted realm
+
+                // If the sam ends with "$", it's a Managed Service Account (MSA)
+                if (user.EndsWith("$", StringComparison.Ordinal))
+                {
+                    return new ParsedIdentity
+                    {
+                        Original = original,
+                        Kind = IdentityKind.DomainMSA,
+                        User = user,
+                        Domain = left
+                    };
+                }
+
                 return new ParsedIdentity
                 {
                     Original = original,
@@ -109,7 +123,7 @@ namespace SecretsManager
             if (parsed.Kind == IdentityKind.DomainUPN)
                 return (parsed.User, null, parsed.Kind);
 
-            if (parsed.Kind == IdentityKind.DomainSam)
+            if (parsed.Kind == IdentityKind.DomainSam || parsed.Kind == IdentityKind.DomainMSA)
                 return (parsed.User, parsed.Domain, parsed.Kind);
 
             if (parsed.Kind == IdentityKind.Local)

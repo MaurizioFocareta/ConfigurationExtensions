@@ -34,24 +34,24 @@ namespace HPE.Extensions.Configuration.CredentialManager
         {
         }
 
-        public Credential(string username, string password)
+        public Credential(string username, SecureString password)
             : this(username, password, null)
         {
         }
 
-        public Credential(string username, string password, string target)
+        public Credential(string username, SecureString password, string target)
             : this(username, password, target, CredentialType.Generic)
         {
         }
-        public Credential(string username, string password, string target, CredentialType type)
+        public Credential(string username, SecureString password, string target, CredentialType type)
             : this(username, password, target, type, PersistanceType.Session)
         {
         }
 
-        public Credential(string username, string password, string target, CredentialType type, PersistanceType persistanceType)
+        public Credential(string username, SecureString password, string target, CredentialType type, PersistanceType persistanceType)
         {
             Username = username;
-            Password = password;
+            SecurePassword = password;
             Target = target;
             Type = type;
             PersistanceType = persistanceType;
