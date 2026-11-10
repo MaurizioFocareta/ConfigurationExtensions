@@ -40,7 +40,7 @@ namespace SecretsManager
             Console.WriteLine("Secrets Manager in Windows CredentialManager (HPE 2024)");
             Console.WriteLine($"Build: {Assembly.GetExecutingAssembly().GetName().Version}");
             Console.WriteLine();
-            Console.WriteLine("SecretsManager [/u:user | /ls] [/w:<Target> | /e:<Target> | /a | /s:<Filter> | /d:<Target> | /p] [ /tu:<Username> /tp:<Password> | /bl:<BlobPath> ]");
+            Console.WriteLine("SecretsManager [/u:user | /ls] [/w:<Target> | /e:<Target> | /a | /s:<Filter> | /d:<Target> | /p] [ /tu:<Username> /tp:<Password>]");
             Console.WriteLine();
             Console.WriteLine("User impersonation context:");
             Console.WriteLine("/u\t\tThe action is performed in the context of the given user. Mutually exclusive with /ls.");
